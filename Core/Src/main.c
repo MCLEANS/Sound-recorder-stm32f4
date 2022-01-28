@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "cmsis_os.h"
 #include "fatfs.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -49,6 +50,13 @@ DMA_HandleTypeDef hdma_sdio_tx;
 
 UART_HandleTypeDef huart1;
 
+/* Definitions for defaultTask */
+osThreadId_t defaultTaskHandle;
+const osThreadAttr_t defaultTask_attributes = {
+  .name = "defaultTask",
+  .stack_size = 128 * 10,
+  .priority = (osPriority_t) osPriorityNormal,
+};
 /* USER CODE BEGIN PV */
 extern char SDPath[4]; /* SD logical drive path */
 extern FATFS SDFatFS; /* File system object for SD logical drive */
@@ -66,6 +74,8 @@ static void MX_DMA_Init(void);
 static void MX_SDIO_SD_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_ADC1_Init(void);
+void StartDefaultTask(void *argument);
+
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -110,44 +120,48 @@ int main(void)
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
 
-  if(f_mount(&SDFatFS, " ", 0) != FR_OK){
-  	 DEBUG_CN("Error mounting SD \n");
-   }
-  else{
-	  DEBUG_CN("SD mounted successfully\n");
-	  res =  f_open(&SDFile, "wav.txt", FA_OPEN_ALWAYS | FA_WRITE | FA_READ);
-	  if(res == FR_OK){
-		  DEBUG_CN("File opened successfully \n");
-	  }
-	  else{
-		  char error_msg[4];
-		  itoa(res,error_msg,10);
-		  DEBUG_CN("Error Opening File with Error : ");
-		  DEBUG_CN(error_msg);
-		  DEBUG_CN("\n");
-		  HAL_Delay(500);
-		  f_close(&SDFile);
-	  }
-  }
-
-  f_mount(0, "", 0);
-
-  DEBUG_CN("Initialization Complete \n");
-
   /* USER CODE END 2 */
 
+  /* Init scheduler */
+  osKernelInitialize();
+
+  /* USER CODE BEGIN RTOS_MUTEX */
+  /* add mutexes, ... */
+  /* USER CODE END RTOS_MUTEX */
+
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* add semaphores, ... */
+  /* USER CODE END RTOS_SEMAPHORES */
+
+  /* USER CODE BEGIN RTOS_TIMERS */
+  /* start timers, add new ones, ... */
+  /* USER CODE END RTOS_TIMERS */
+
+  /* USER CODE BEGIN RTOS_QUEUES */
+  /* add queues, ... */
+  /* USER CODE END RTOS_QUEUES */
+
+  /* Create the thread(s) */
+  /* creation of defaultTask */
+  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+
+  /* USER CODE BEGIN RTOS_THREADS */
+  /* add threads, ... */
+  /* USER CODE END RTOS_THREADS */
+
+  /* USER CODE BEGIN RTOS_EVENTS */
+  /* add events, ... */
+  /* USER CODE END RTOS_EVENTS */
+
+  /* Start scheduler */
+  osKernelStart();
+
+  /* We should never get here as control is now taken by the scheduler */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
     /* USER CODE END WHILE */
-	  /* Read raw ADC value */
-	  HAL_ADC_Start(&hadc1);
-	  uint16_t adc_value = HAL_ADC_GetValue(&hadc1);
-	  char adc_value_str[5] = {};
-	  itoa(adc_value,adc_value_str,10);
-	  DEBUG_CN(adc_value_str);
-	  DEBUG_CN("\n");
 
     /* USER CODE BEGIN 3 */
   }
@@ -319,10 +333,10 @@ static void MX_DMA_Init(void)
 
   /* DMA interrupt init */
   /* DMA2_Stream3_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA2_Stream3_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(DMA2_Stream3_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA2_Stream3_IRQn);
   /* DMA2_Stream6_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA2_Stream6_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(DMA2_Stream6_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA2_Stream6_IRQn);
 
 }
@@ -357,6 +371,55 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */
+
+/* USER CODE BEGIN Header_StartDefaultTask */
+/**
+  * @brief  Function implementing the defaultTask thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_StartDefaultTask */
+void StartDefaultTask(void *argument)
+{
+  /* USER CODE BEGIN 5 */
+
+	  if(f_mount(&SDFatFS, " ", 0) != FR_OK){
+	  	 DEBUG_CN("Error mounting SD \n");
+	   }
+	  else{
+		  DEBUG_CN("SD mounted successfully\n");
+		  res =  f_open(&SDFile, "wav.txt", FA_OPEN_ALWAYS | FA_WRITE | FA_READ);
+		  if(res == FR_OK){
+			  DEBUG_CN("File opened successfully \n");
+		  }
+		  else{
+			  char error_msg[4];
+			  itoa(res,error_msg,10);
+			  DEBUG_CN("Error Opening File with Error : ");
+			  DEBUG_CN(error_msg);
+			  DEBUG_CN("\n");
+			  HAL_Delay(500);
+			  f_close(&SDFile);
+		  }
+	  }
+
+	  f_mount(0, "", 0);
+
+	  DEBUG_CN("Initialization Complete \n");
+
+	char adc_value_str[5] = {};
+  /* Infinite loop */
+  for(;;)
+  {
+	  HAL_ADC_Start(&hadc1);
+	  uint16_t adc_value = HAL_ADC_GetValue(&hadc1);
+	  itoa(adc_value,adc_value_str,10);
+	  DEBUG_CN(adc_value_str);
+	  DEBUG_CN("\n");
+      osDelay(1);
+  }
+  /* USER CODE END 5 */
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.

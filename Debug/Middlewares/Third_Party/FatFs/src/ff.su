@@ -6,6 +6,8 @@ ff.c:693:6:mem_cpy	32	static
 ff.c:706:6:mem_set	32	static
 ff.c:716:5:mem_cmp	40	static
 ff.c:729:5:chk_chr	16	static
+ff.c:742:5:lock_fs	16	static
+ff.c:751:6:unlock_fs	16	static
 ff.c:771:9:chk_lock	24	static
 ff.c:798:5:enq_lock	16	static
 ff.c:808:6:inc_lock	24	static
