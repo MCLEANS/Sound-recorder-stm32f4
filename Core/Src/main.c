@@ -54,8 +54,18 @@ UART_HandleTypeDef huart1;
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
   .name = "defaultTask",
-  .stack_size = 128 * 10,
+  .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for audio_timer */
+osTimerId_t audio_timerHandle;
+const osTimerAttr_t audio_timer_attributes = {
+  .name = "audio_timer"
+};
+/* Definitions for record_semaphore */
+osSemaphoreId_t record_semaphoreHandle;
+const osSemaphoreAttr_t record_semaphore_attributes = {
+  .name = "record_semaphore"
 };
 /* USER CODE BEGIN PV */
 extern char SDPath[4]; /* SD logical drive path */
@@ -75,6 +85,7 @@ static void MX_SDIO_SD_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_ADC1_Init(void);
 void StartDefaultTask(void *argument);
+void audio_record_timer(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -129,12 +140,22 @@ int main(void)
   /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
 
+  /* Create the semaphores(s) */
+  /* creation of record_semaphore */
+  record_semaphoreHandle = osSemaphoreNew(1, 1, &record_semaphore_attributes);
+
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
+  osSemaphoreRelease(record_semaphoreHandle);
   /* USER CODE END RTOS_SEMAPHORES */
+
+  /* Create the timer(s) */
+  /* creation of audio_timer */
+  audio_timerHandle = osTimerNew(audio_record_timer, osTimerPeriodic, NULL, &audio_timer_attributes);
 
   /* USER CODE BEGIN RTOS_TIMERS */
   /* start timers, add new ones, ... */
+
   /* USER CODE END RTOS_TIMERS */
 
   /* USER CODE BEGIN RTOS_QUEUES */
@@ -408,17 +429,35 @@ void StartDefaultTask(void *argument)
 	  DEBUG_CN("Initialization Complete \n");
 
 	char adc_value_str[5] = {};
+
+	/* Start record timer */
+	osTimerStart(audio_timerHandle, 50000000U);
   /* Infinite loop */
   for(;;)
   {
-	  HAL_ADC_Start(&hadc1);
-	  uint16_t adc_value = HAL_ADC_GetValue(&hadc1);
-	  itoa(adc_value,adc_value_str,10);
-	  DEBUG_CN(adc_value_str);
-	  DEBUG_CN("\n");
-      osDelay(1);
+
+	  if(osSemaphoreAcquire(record_semaphoreHandle, osWaitForever) == osOK){
+		  HAL_ADC_Start(&hadc1);
+		  	 		  uint16_t adc_value = HAL_ADC_GetValue(&hadc1);
+		  	 		  itoa(adc_value,adc_value_str,10);
+		  	 		  DEBUG_CN(adc_value_str);
+		  	 		  DEBUG_CN("\n");
+
+	  }
+	osDelay(20);
   }
   /* USER CODE END 5 */
+}
+
+/* audio_record_timer function */
+void audio_record_timer(void *argument)
+{
+  /* USER CODE BEGIN audio_record_timer */
+	/* Release the record timer to enable recording */
+	osSemaphoreRelease(record_semaphoreHandle);
+	HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_7);
+
+  /* USER CODE END audio_record_timer */
 }
 
 /**
